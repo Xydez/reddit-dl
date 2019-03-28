@@ -10,6 +10,7 @@ Usage:\tpython reddit-dl.py <subreddit> <time_range> <limit>
   time_range:  One of (hour, day, week, month, year, all).
   limit:       Amount of posts to download.
 """)
+	quit()
 
 sub = sys.argv[1]
 time_range = sys.argv[2]
