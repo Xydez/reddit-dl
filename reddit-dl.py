@@ -1,21 +1,26 @@
 import re, requests, os, shutil, math, sys, time, json
 from multiprocessing.dummy import Pool as ThreadPool
-from threading import lock
+from threading import Lock
 
-if len(sys.argv) < 4:
+lock = Lock()
+
+if len(sys.argv) < 5:
 	print("Not enough arguments!")
 	print(
 """
-Usage:\tpython reddit-dl.py <subreddit> <time_range> <limit>
+Usage:\tpython reddit-dl.py <type> <subreddit> <time_range> <limit> [min-likes]
+  type:        One of (hot, new, rising, controversial, top).
+               *Due to API limitations a maximum of 1000 top posts can be downloaded.
   subreddit:   The subreddit you want to download from.
   time_range:  One of (hour, day, week, month, year, all).
   limit:       Amount of posts to download.
 """)
 	quit()
 
-sub = sys.argv[1]
-time_range = sys.argv[2]
-limit = int(sys.argv[3])
+type = sys.argv[1] # hot, new, rising, controversial, top
+sub = sys.argv[2]
+time_range = sys.argv[3]
+limit = int(sys.argv[4])
 
 image_links = []
 images_downloaded = 0
@@ -31,7 +36,7 @@ def get_page(_limit, _after):
 	sys.stdout.write("\rRequesting" + ('.' * dots))
 	sys.stdout.flush()
 	dots += 1
-	url = "https://www.reddit.com/r/{}/top.json?t={}&limit={}{}".format(sub, time_range, _limit, ("&after=" + _after if _after != None else ""))
+	url = "https://www.reddit.com/r/{}/{}.json?t={}&limit={}{}".format(sub, type, time_range, _limit, ("&after=" + _after if _after != None else ""))
 	response = requests.get(url, headers = { 'User-agent': 'meme-dl.py' })
 	sys.stdout.write('  ' + str(response.status_code))
 	sys.stdout.flush()
@@ -65,14 +70,12 @@ def download_image(_direct_link):
 	if srch == None:
 		return False
 	fname = srch.group()
-	with open('images/{}/{}'.format(sub, fname), 'wb') as out_file:
 	global images_downloaded
 	ext = re.search(r'(jpg|png|jpeg|gif)', fname).group()
 	lock.acquire()
 	with open('images/{}/{}'.format(sub, str(images_downloaded) + '.' + ext), 'wb') as out_file:
 		shutil.copyfileobj(response.raw, out_file)
 	del response
-	global images_downloaded
 	images_downloaded += 1
 	update_download_progress(fname)
 	lock.release()
@@ -119,36 +122,3 @@ else:
 print("\nDone!")
 
 # <img src="([^"])+" [^>]+ ?/?>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
