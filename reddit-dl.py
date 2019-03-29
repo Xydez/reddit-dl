@@ -1,5 +1,6 @@
 import re, requests, os, shutil, math, sys, time, json
 from multiprocessing.dummy import Pool as ThreadPool
+from threading import lock
 
 if len(sys.argv) < 4:
 	print("Not enough arguments!")
@@ -60,16 +61,21 @@ def download_image(_direct_link):
 	if response.status_code != 200:
 		print(response.status_code)
 		return False
-	srch = re.search(r'[A-Za-z0-9]+\.(jpg|png|jpeg|gif)', _direct_link)
+	srch = re.search(r'[A-Za-z0-9]+(\.jpg|\.png|\.jpeg|\.gif)', _direct_link)
 	if srch == None:
-		return
+		return False
 	fname = srch.group()
 	with open('images/{}/{}'.format(sub, fname), 'wb') as out_file:
+	global images_downloaded
+	ext = re.search(r'(jpg|png|jpeg|gif)', fname).group()
+	lock.acquire()
+	with open('images/{}/{}'.format(sub, str(images_downloaded) + '.' + ext), 'wb') as out_file:
 		shutil.copyfileobj(response.raw, out_file)
 	del response
 	global images_downloaded
 	images_downloaded += 1
 	update_download_progress(fname)
+	lock.release()
 	return True
 
 if limit <= 100:
@@ -94,11 +100,12 @@ if(linkslen <= 100):
 else:
 	print("\nStarting {} threads".format(linkslen))
 	rlen = int(linkslen / 100) * 100
-	pool = ThreadPool(linkslen - rlen)
-	pool.map(download_image, image_links[rlen:linkslen])
-	pool.close()
-	pool.join()
-	del pool
+	if linkslen - rlen > 0:
+		pool = ThreadPool(linkslen - rlen)
+		pool.map(download_image, image_links[rlen:linkslen])
+		pool.close()
+		pool.join()
+		del pool
 	i = 0
 	while i < rlen / 100:
 		pool = ThreadPool(100)
